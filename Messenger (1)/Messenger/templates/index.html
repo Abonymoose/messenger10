@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chatroom + Russian Roulette</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: monospace;
+            background: #000;
+            color: #0f0;
+            display: flex;
+            height: 100vh;
+        }
+        #left, #right {
+            padding: 10px;
+            overflow-y: auto;
+        }
+        #left {
+            width: 40%;
+            border-right: 2px solid #0f0;
+        }
+        #right {
+            width: 60%;
+        }
+        #messages, #rr {
+            height: 80%;
+            overflow-y: auto;
+            border: 1px solid #0f0;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        input {
+            width: 80%;
+            background: black;
+            color: lime;
+            border: 1px solid #0f0;
+        }
+        button {
+            background: black;
+            color: lime;
+            border: 1px solid #0f0;
+        }
+    </style>
+</head>
+<body>
+    <div id="left">
+        <h3>☠️ Russian Roulette ☠️</h3>
+        <div id="rr"></div>
+        <input id="rrinput" placeholder="shoot / y / n...">
+        <button onclick="sendRR()">Send</button>
+    </div>
+    <div id="right">
+        <h3>💬 Global Chat</h3>
+        <div>Active Users: <span id="active">1</span></div>
+        <div id="messages"></div>
+        <input id="msg" placeholder="Chat here...">
+        <button onclick="sendChat()">Send</button>
+    </div>
+
+    <script>
+        const socket = io();
+        let userId = "";
+
+        const messages = document.getElementById("messages");
+        const rr = document.getElementById("rr");
+
+        socket.on("init", data => {
+            userId = data.id;
+            document.getElementById("active").innerText = data.active;
+            data.chat.forEach(c => addMsg(c[0], c[1]));
+            rr.innerHTML += "??? : 'You... What is your name?'<br>";
+        });
+
+        socket.on("chat", data => {
+            addMsg(data.id, data.msg);
+        });
+
+        socket.on("rr_response", data => {
+            rr.innerHTML += `<b>${data.id}:</b> ${data.msg.replace(/\n/g, "<br>")}<br>`;
+            rr.scrollTop = rr.scrollHeight;
+        });
+
+        socket.on("update_active", count => {
+            document.getElementById("active").innerText = count;
+        });
+
+        function sendChat() {
+            const input = document.getElementById("msg");
+            const text = input.value.trim();
+            if (text) {
+                socket.emit("chat", { msg: text });
+                input.value = "";
+            }
+        }
+
+        function sendRR() {
+            const input = document.getElementById("rrinput");
+            const text = input.value.trim();
+            if (text) {
+                socket.emit("rr_message", text);
+                input.value = "";
+            }
+        }
+
+        document.getElementById("msg").addEventListener("keydown", e => {
+            if (e.key === "Enter") sendChat();
+        });
+
+        document.getElementById("rrinput").addEventListener("keydown", e => {
+            if (e.key === "Enter") sendRR();
+        });
+
+        function addMsg(sender, msg) {
+            const div = document.createElement("div");
+            div.innerHTML = `<b>${sender}:</b> ${msg}`;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+    </script>
+</body>
+</html>
